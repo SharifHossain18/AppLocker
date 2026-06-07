@@ -15,6 +15,7 @@ import { AppLocker, InstalledApp } from '../native/AppLocker';
 enum Screen {
   MAIN,
   SET_PIN,
+  VERIFY_PIN,
 }
 
 export default function HomeScreen() {
@@ -24,6 +25,7 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true);
   const [pin, setPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
+  const [enteredPin, setEnteredPin] = useState('');
   const [hasPin, setHasPin] = useState(false);
   const [serviceEnabled, setServiceEnabled] = useState(false);
 
@@ -39,6 +41,11 @@ export default function HomeScreen() {
       setLockedApps(new Set(locked));
       setServiceEnabled(serviceOn);
       setHasPin(pinExists);
+      if (pinExists) {
+        setScreen(Screen.VERIFY_PIN);
+      } else {
+        setScreen(Screen.MAIN);
+      }
     } catch (e) {
       console.error(e);
     } finally {
@@ -89,6 +96,25 @@ export default function HomeScreen() {
     }
   };
 
+  const checkPin = async () => {
+    if (enteredPin.length < 4) {
+      Alert.alert('Error', 'PIN must be at least 4 digits');
+      return;
+    }
+    try {
+      const success = await AppLocker.verifyPin(enteredPin);
+      if (success) {
+        setScreen(Screen.MAIN);
+        setEnteredPin('');
+      } else {
+        Alert.alert('Error', 'Incorrect PIN');
+        setEnteredPin('');
+      }
+    } catch (e) {
+      Alert.alert('Error', 'Failed to verify PIN');
+    }
+  };
+
   const renderAppItem = ({ item }: { item: InstalledApp }) => {
     const isLocked = lockedApps.has(item.packageName);
     return (
@@ -115,6 +141,27 @@ export default function HomeScreen() {
     return (
       <View style={[styles.container, styles.center]}>
         <ActivityIndicator size="large" color="#10b981" />
+      </View>
+    );
+  }
+
+  if (screen === Screen.VERIFY_PIN) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.title}>Unlock AppLocker</Text>
+        <TextInput
+          style={styles.pinInput}
+          placeholder="Enter PIN"
+          placeholderTextColor="#666"
+          keyboardType="number-pad"
+          secureTextEntry
+          maxLength={6}
+          value={enteredPin}
+          onChangeText={setEnteredPin}
+        />
+        <TouchableOpacity style={styles.saveBtn} onPress={checkPin}>
+          <Text style={styles.saveBtnText}>Verify & Unlock</Text>
+        </TouchableOpacity>
       </View>
     );
   }

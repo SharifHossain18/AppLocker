@@ -2,15 +2,45 @@ package com.applocker
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
+import android.content.BroadcastReceiver
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.SharedPreferences
+import android.provider.Settings
+import android.text.TextUtils
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 
 class AppLockerAccessibilityService : AccessibilityService() {
 
     private var lastPackageName: String? = null
+
+    private val screenOffReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == Intent.ACTION_SCREEN_OFF) {
+                synchronized(unlockedPackages) {
+                    unlockedPackages.clear()
+                }
+            }
+        }
+    }
+
+    override fun onCreate() {
+        super.onCreate()
+        val filter = IntentFilter(Intent.ACTION_SCREEN_OFF)
+        registerReceiver(screenOffReceiver, filter)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        try {
+            unregisterReceiver(screenOffReceiver)
+        } catch (e: Exception) {
+            Log.e("AppLocker", "Failed to unregister screenOffReceiver", e)
+        }
+    }
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -28,8 +58,10 @@ class AppLockerAccessibilityService : AccessibilityService() {
 
         val packageName = event.packageName?.toString() ?: return
 
-        if (packageName == lastPackageName) return
-        if (packageName == "com.applocker") return
+        // Ignore lock screen, launcher, and system UI components from changing lock states
+        if (packageName == "com.applocker" || packageName == "com.android.systemui") {
+            return
+        }
 
         lastPackageName = packageName
 
@@ -37,6 +69,13 @@ class AppLockerAccessibilityService : AccessibilityService() {
         val lockedApps = prefs.getStringSet("locked_apps", emptySet()) ?: emptySet()
 
         if (lockedApps.contains(packageName)) {
+            synchronized(unlockedPackages) {
+                if (unlockedPackages.contains(packageName)) {
+                    // Already unlocked in this session
+                    return
+                }
+            }
+
             Log.d("AppLocker", "Locked app detected: $packageName")
             val intent = Intent(this, LockScreenActivity::class.java).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
@@ -49,12 +88,24 @@ class AppLockerAccessibilityService : AccessibilityService() {
     override fun onInterrupt() {}
 
     companion object {
+        val unlockedPackages = HashSet<String>()
+
         fun isServiceEnabled(context: Context): Boolean {
-            val am = context.getSystemService(Context.ACCESSIBILITY_SERVICE) as android.view.accessibility.AccessibilityManager
-            val enabledServices = am.getEnabledAccessibilityServiceList(
-                AccessibilityServiceInfo.FEEDBACK_GENERIC
-            )
-            return enabledServices.any { it.resolveInfo.serviceInfo.packageName == context.packageName }
+            val expectedComponentName = ComponentName(context, AppLockerAccessibilityService::class.java)
+            val enabledServicesSetting = Settings.Secure.getString(
+                context.contentResolver,
+                Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+            ) ?: return false
+            val colonSplitter = TextUtils.SimpleStringSplitter(':')
+            colonSplitter.setString(enabledServicesSetting)
+            while (colonSplitter.hasNext()) {
+                val componentNameString = colonSplitter.next()
+                val enabledService = ComponentName.unflattenFromString(componentNameString)
+                if (enabledService != null && enabledService == expectedComponentName) {
+                    return true
+                }
+            }
+            return false
         }
     }
 }

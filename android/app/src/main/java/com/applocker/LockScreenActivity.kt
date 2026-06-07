@@ -2,6 +2,7 @@ package com.applocker
 
 import android.app.Activity
 import android.content.Context
+import android.content.Intent
 import android.content.SharedPreferences
 import android.os.Bundle
 import android.view.WindowManager
@@ -38,6 +39,14 @@ class LockScreenActivity : Activity() {
         }
 
         setupPinPad()
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        targetPackage = intent.getStringExtra("target_package")
+        pinBuffer.clear()
+        findViewById<TextView>(R.id.pin_dots).text = "○○○○"
     }
 
     private fun setupPinPad() {
@@ -87,6 +96,11 @@ class LockScreenActivity : Activity() {
         val inputHash = hashPin(pinBuffer.toString())
 
         if (inputHash == storedHash) {
+            targetPackage?.let {
+                synchronized(AppLockerAccessibilityService.unlockedPackages) {
+                    AppLockerAccessibilityService.unlockedPackages.add(it)
+                }
+            }
             finish()
         } else {
             pinBuffer.clear()
