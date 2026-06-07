@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">AppLocker</string>
+    <string name="accessibility_service_description">AppLocker uses accessibility service to detect when a locked app is opened and show the lock screen.</string>
 </resources>
