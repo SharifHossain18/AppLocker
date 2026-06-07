@@ -46,19 +46,29 @@ class AppLockerModule(reactContext: ReactApplicationContext) :
     }
 
     @ReactMethod
-    fun lockApp(packageName: String) {
-        val prefs = getPrefs()
-        val locked = prefs.getStringSet("locked_apps", mutableSetOf())?.toMutableSet() ?: mutableSetOf()
-        locked.add(packageName)
-        prefs.edit().putStringSet("locked_apps", locked).apply()
+    fun lockApp(packageName: String, promise: Promise) {
+        try {
+            val prefs = getPrefs()
+            val locked = prefs.getStringSet("locked_apps", mutableSetOf())?.toMutableSet() ?: mutableSetOf()
+            locked.add(packageName)
+            prefs.edit().putStringSet("locked_apps", locked).apply()
+            promise.resolve(true)
+        } catch (e: Exception) {
+            promise.reject("LOCK_ERROR", e.message, e)
+        }
     }
 
     @ReactMethod
-    fun unlockApp(packageName: String) {
-        val prefs = getPrefs()
-        val locked = prefs.getStringSet("locked_apps", mutableSetOf())?.toMutableSet() ?: mutableSetOf()
-        locked.remove(packageName)
-        prefs.edit().putStringSet("locked_apps", locked).apply()
+    fun unlockApp(packageName: String, promise: Promise) {
+        try {
+            val prefs = getPrefs()
+            val locked = prefs.getStringSet("locked_apps", mutableSetOf())?.toMutableSet() ?: mutableSetOf()
+            locked.remove(packageName)
+            prefs.edit().putStringSet("locked_apps", locked).apply()
+            promise.resolve(true)
+        } catch (e: Exception) {
+            promise.reject("UNLOCK_ERROR", e.message, e)
+        }
     }
 
     @ReactMethod
@@ -121,19 +131,29 @@ class AppLockerModule(reactContext: ReactApplicationContext) :
     }
 
     @ReactMethod
-    fun openAccessibilitySettings() {
-        val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    fun openAccessibilitySettings(promise: Promise) {
+        try {
+            val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            reactApplicationContext.startActivity(intent)
+            promise.resolve(true)
+        } catch (e: Exception) {
+            promise.reject("SETTINGS_ERROR", e.message, e)
         }
-        reactApplicationContext.startActivity(intent)
     }
 
     @ReactMethod
-    fun openAppOverlaySettings() {
-        val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    fun openAppOverlaySettings(promise: Promise) {
+        try {
+            val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            reactApplicationContext.startActivity(intent)
+            promise.resolve(true)
+        } catch (e: Exception) {
+            promise.reject("SETTINGS_ERROR", e.message, e)
         }
-        reactApplicationContext.startActivity(intent)
     }
 
     private fun getPrefs(): SharedPreferences {

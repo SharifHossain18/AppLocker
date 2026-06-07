@@ -51,13 +51,13 @@ export const AppLocker = {
     return AppLockerModule.isAccessibilityServiceEnabled();
   },
 
-  openAccessibilitySettings(): void {
+  async openAccessibilitySettings(): Promise<void> {
     if (!isAndroid) return;
-    AppLockerModule.openAccessibilitySettings();
+    return AppLockerModule.openAccessibilitySettings();
   },
 
-  openAppOverlaySettings(): void {
+  async openAppOverlaySettings(): Promise<void> {
     if (!isAndroid) return;
-    AppLockerModule.openAppOverlaySettings();
+    return AppLockerModule.openAppOverlaySettings();
   },
 };
