@@ -68,8 +68,8 @@ jobs:
             --title "Latest Release" \
             --notes "## Download
 
-**AppLocker-arm64.apk** — For modern phones (2016+), recommended (~25 MB)
-**AppLocker-arm32.apk** — For older phones (fallback, ~20 MB)" \
+            **AppLocker-arm64.apk** — For modern phones (2016+), recommended (~25 MB)
+            **AppLocker-arm32.apk** — For older phones (fallback, ~20 MB)" \
             --latest
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

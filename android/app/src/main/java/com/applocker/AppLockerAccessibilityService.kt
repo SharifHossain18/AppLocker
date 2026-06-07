@@ -30,7 +30,11 @@ class AppLockerAccessibilityService : AccessibilityService() {
     override fun onCreate() {
         super.onCreate()
         val filter = IntentFilter(Intent.ACTION_SCREEN_OFF)
-        registerReceiver(screenOffReceiver, filter)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(screenOffReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(screenOffReceiver, filter)
+        }
     }
 
     override fun onDestroy() {

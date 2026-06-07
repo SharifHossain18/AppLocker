@@ -5,7 +5,7 @@
         <item name="android:editTextBackground">@drawable/rn_edit_text_material</item>
     </style>
 
-    <style name="PinButton" parent="Widget.AppCompat.Button">
+    <style name="PinButton" parent="android:Widget.Button">
         <item name="android:layout_width">80dp</item>
         <item name="android:layout_height">80dp</item>
         <item name="android:layout_margin">6dp</item>
