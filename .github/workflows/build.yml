@@ -60,8 +60,9 @@ jobs:
 
       - name: Release APK
         run: |
+          cp android/app/build/outputs/apk/release/app-arm64-v8a-release.apk AppLocker.apk
           gh release delete v1.0.0 --yes || true
           git push --delete origin v1.0.0 || true
-          gh release create v1.0.0 "android/app/build/outputs/apk/release/app-arm64-v8a-release.apk#AppLocker.apk" --title "Latest Release" --notes "Latest optimized build of AppLocker (~25 MB). Download AppLocker.apk below to install." --latest
+          gh release create v1.0.0 AppLocker.apk --title "Latest Release" --notes "Latest optimized build of AppLocker (~25 MB). Download AppLocker.apk below to install." --latest
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
