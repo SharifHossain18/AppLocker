@@ -58,3 +58,7 @@
 -keepattributes SourceFile,LineNumberTable
 -keepattributes Signature
 -keepattributes Exceptions
+
+# ─── Tink / ErrorProne annotations ──────────────────────────────────────────
+-dontwarn com.google.errorprone.annotations.**
+-dontwarn javax.annotation.**
