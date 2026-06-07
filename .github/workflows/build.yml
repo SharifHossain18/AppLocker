@@ -54,3 +54,11 @@ jobs:
         with:
           name: app-debug
           path: android/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Release APK
+        run: |
+          gh release delete v1.0.0 --yes || true
+          git push --delete origin v1.0.0 || true
+          gh release create v1.0.0 android/app/build/outputs/apk/debug/app-debug.apk --title "Latest Release" --notes "Latest build of AppLocker with security and UX fixes. Download the app-debug.apk below to install." --latest
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
