@@ -44,10 +44,10 @@ jobs:
       - name: Bundle JS
         run: npx react-native bundle --platform android --dev false --entry-file index.js --bundle-output android/app/src/main/assets/index.android.bundle --assets-dest android/app/src/main/res
 
-      - name: Build debug APK
+      - name: Build release APK
         run: |
           chmod +x android/gradlew
-          cd android && ./gradlew assembleDebug
+          cd android && ./gradlew assembleRelease
         env:
           ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
           ANDROID_HOME: ${{ env.ANDROID_HOME }}
@@ -55,13 +55,13 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: app-debug
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          name: app-release
+          path: android/app/build/outputs/apk/release/app-arm64-v8a-release.apk
 
       - name: Release APK
         run: |
           gh release delete v1.0.0 --yes || true
           git push --delete origin v1.0.0 || true
-          gh release create v1.0.0 android/app/build/outputs/apk/debug/app-debug.apk --title "Latest Release" --notes "Latest build of AppLocker with security and UX fixes. Download the app-debug.apk below to install." --latest
+          gh release create v1.0.0 "android/app/build/outputs/apk/release/app-arm64-v8a-release.apk#AppLocker.apk" --title "Latest Release" --notes "Latest optimized build of AppLocker (~25 MB). Download AppLocker.apk below to install." --latest
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
