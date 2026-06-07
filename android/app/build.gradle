@@ -57,7 +57,7 @@ react {
 /**
  * Set this to true to Run Proguard on Release builds to minify the Java bytecode.
  */
-def enableProguardInReleaseBuilds = false
+def enableProguardInReleaseBuilds = true
 
 /**
  * The preferred build flavor of JavaScriptCore (JSC)
@@ -104,12 +104,14 @@ android {
         }
     }
 
-    // ABI splits: disabled so we get a universal APK that works on all devices
+    // arm64-v8a covers all modern Android phones (2016+)
+    // This keeps the APK small (~25MB instead of ~80MB)
     splits {
         abi {
             reset()
-            enable false
-            universalApk true
+            enable true
+            universalApk false
+            include "arm64-v8a", "armeabi-v7a" // arm64 + arm32 fallback
         }
     }
 }
