@@ -71,10 +71,9 @@ class LockScreenActivity : Activity() {
     }
 
     private fun updatePinDots(dots: TextView) {
-        val display = pinBuffer.toString().padEnd(4, '○')
-        dots.text = display.replaceRange(IntRange(0, pinBuffer.length.coerceAtMost(4) - 1)) {
-            pinBuffer.toString().map { '●' }.joinToString("")
-        }
+        val filled = pinBuffer.toString().map { '●' }.joinToString("")
+        val display = filled.padEnd(4, '○')
+        dots.text = display
     }
 
     private fun verifyPin() {
