@@ -5,11 +5,28 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.provider.Settings
+import android.security.keystore.KeyGenParameterSpec
+import android.security.keystore.KeyProperties
+import android.util.Base64
 import com.facebook.react.bridge.*
 import java.security.MessageDigest
+import java.security.SecureRandom
+import javax.crypto.Cipher
+import javax.crypto.KeyGenerator
+import javax.crypto.SecretKey
+import javax.crypto.spec.GCMParameterSpec
 
 class AppLockerModule(reactContext: ReactApplicationContext) :
     ReactContextBaseJavaModule(reactContext) {
+
+    companion object {
+        private const val KEY_ALIAS = "applocker_pin_key"
+        private const val PREFS_NAME = "applocker"
+        private const val PIN_HASH_KEY = "pin_hash"
+        private const val PIN_SALT_KEY = "pin_salt"
+        private const val GCM_IV_LENGTH = 12
+        private const val GCM_TAG_LENGTH = 16
+    }
 
     override fun getName(): String = "AppLockerModule"
 
@@ -33,7 +50,6 @@ class AppLockerModule(reactContext: ReactApplicationContext) :
                     putString("name", label)
                     putInt("iconResId", iconResId)
                 }
-                // Filter system launcher
                 if (!pkg.startsWith("com.android") && !pkg.startsWith("android")) {
                     apps.add(app)
                 }
@@ -89,8 +105,13 @@ class AppLockerModule(reactContext: ReactApplicationContext) :
                 promise.reject("PIN_TOO_SHORT", "PIN must be at least 4 digits")
                 return
             }
-            val hash = hashPin(pin)
-            getPrefs().edit().putString("pin_hash", hash).apply()
+            val salt = generateSalt()
+            val hash = hashPinWithSalt(pin, salt)
+            val prefs = getPrefs()
+            prefs.edit()
+                .putString(PIN_HASH_KEY, hash)
+                .putString(PIN_SALT_KEY, Base64.encodeToString(salt, Base64.NO_WRAP))
+                .apply()
             promise.resolve(true)
         } catch (e: Exception) {
             promise.reject("PIN_ERROR", e.message, e)
@@ -100,12 +121,16 @@ class AppLockerModule(reactContext: ReactApplicationContext) :
     @ReactMethod
     fun verifyPin(pin: String, promise: Promise) {
         try {
-            val storedHash = getPrefs().getString("pin_hash", null)
-            if (storedHash == null) {
+            val prefs = getPrefs()
+            val storedHash = prefs.getString(PIN_HASH_KEY, null)
+            val storedSaltB64 = prefs.getString(PIN_SALT_KEY, null)
+            if (storedHash == null || storedSaltB64 == null) {
                 promise.resolve(false)
                 return
             }
-            promise.resolve(hashPin(pin) == storedHash)
+            val salt = Base64.decode(storedSaltB64, Base64.NO_WRAP)
+            val inputHash = hashPinWithSalt(pin, salt)
+            promise.resolve(inputHash == storedHash)
         } catch (e: Exception) {
             promise.reject("PIN_ERROR", e.message, e)
         }
@@ -114,7 +139,8 @@ class AppLockerModule(reactContext: ReactApplicationContext) :
     @ReactMethod
     fun hasPin(promise: Promise) {
         try {
-            val hash = getPrefs().getString("pin_hash", null)
+            val prefs = getPrefs()
+            val hash = prefs.getString(PIN_HASH_KEY, null)
             promise.resolve(hash != null)
         } catch (e: Exception) {
             promise.reject("PIN_ERROR", e.message, e)
@@ -156,12 +182,33 @@ class AppLockerModule(reactContext: ReactApplicationContext) :
         }
     }
 
-    private fun getPrefs(): SharedPreferences {
-        return reactApplicationContext.getSharedPreferences("applocker", Context.MODE_PRIVATE)
+    @ReactMethod
+    fun isBiometricAvailable(promise: Promise) {
+        try {
+            val biometricManager = reactApplicationContext.getSystemService(android.hardware.biometrics.BiometricManager::class.java)
+            val result = when (biometricManager.canAuthenticate()) {
+                android.hardware.biometrics.BiometricManager.BIOMETRIC_SUCCESS -> true
+                else -> false
+            }
+            promise.resolve(result)
+        } catch (e: Exception) {
+            promise.resolve(false)
+        }
     }
 
-    private fun hashPin(pin: String): String {
+    private fun getPrefs(): SharedPreferences {
+        return reactApplicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    }
+
+    private fun generateSalt(): ByteArray {
+        val salt = ByteArray(16)
+        SecureRandom().nextBytes(salt)
+        return salt
+    }
+
+    private fun hashPinWithSalt(pin: String, salt: ByteArray): String {
         val digest = MessageDigest.getInstance("SHA-256")
+        digest.update(salt)
         val bytes = digest.digest(pin.toByteArray())
         return bytes.joinToString("") { "%02x".format(it) }
     }

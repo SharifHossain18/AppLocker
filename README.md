@@ -1,97 +1,121 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# AppLocker
 
-# Getting Started
+React Native Android app that locks selected apps behind a PIN/biometric using Accessibility Service.
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+## Features
 
-## Step 1: Start Metro
+- **App locking** — Select apps to protect from a list of installed apps
+- **PIN authentication** — 4+ digit PIN with salted SHA-256 storage
+- **Biometric fallback** — Fingerprint/face unlock (Android 9+)
+- **Accessibility-based detection** — Instantly shows lock screen when protected app opens
+- **Session persistence** — Unlocked apps stay unlocked until screen turns off
 
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
+## Architecture
 
-To start the Metro dev server, run the following command from the root of your React Native project:
+```
+┌─────────────────┐     ┌──────────────────────┐     ┌─────────────────────┐
+│  React Native   │────▶│  Native Module (Kotlin)  │────▶│  Accessibility Service │
+│  (HomeScreen)   │     │  AppLockerModule      │     │  (AppLockerAccessibilityService) │
+└─────────────────┘     └──────────────────────┘     └─────────────────────┘
+                                                         │
+                                                         ▼
+                                              ┌─────────────────────┐
+                                              │  LockScreenActivity │
+                                              │  (PIN + Biometric)  │
+                                              └─────────────────────┘
+```
 
-```sh
-# Using npm
+## Requirements
+
+- Android 7.0+ (API 24+)
+- React Native 0.85+
+- Node.js 22+
+- Accessibility Service permission (user must enable in Settings)
+
+## Installation
+
+```bash
+# Install dependencies
+npm install
+
+# Build and run on Android
+npm run android
+```
+
+## Building Release APK
+
+```bash
+cd android
+./gradlew assembleRelease
+# Output: android/app/build/outputs/apk/release/app-release.apk
+```
+
+## Security
+
+| Aspect | Implementation |
+|--------|----------------|
+| PIN Storage | Salted SHA-256 (16-byte random salt per PIN) |
+| Biometric | Android BiometricPrompt API (Strong auth) |
+| Session | In-memory `unlockedPackages` set, cleared on `ACTION_SCREEN_OFF` |
+| Back button | Blocked on lock screen |
+
+## Permissions
+
+| Permission | Purpose |
+|------------|---------|
+| `BIND_ACCESSIBILITY_SERVICE` | Detect app launches |
+| `SYSTEM_ALERT_WINDOW` | Show lock screen over other apps |
+| `INTERNET` | React Native debugging (dev only) |
+
+## Project Structure
+
+```
+AppLocker/
+├── android/
+│   └── app/src/main/
+│       ├── java/com/applocker/
+│       │   ├── AppLockerModule.kt       # React Native bridge
+│       │   ├── AppLockerAccessibilityService.kt
+│       │   ├── LockScreenActivity.kt
+│       │   └── MainActivity.kt
+│       ├── res/
+│       │   ├── layout/lock_screen.xml
+│       │   ├── xml/accessibility_service_config.xml
+│       │   └── values/strings.xml
+│       └── AndroidManifest.xml
+├── src/
+│   ├── native/AppLocker.ts              # TS interface to native module
+│   └── screens/HomeScreen.tsx           # Main UI
+├── App.tsx
+└── package.json
+```
+
+## Enabling the Accessibility Service
+
+1. Open AppLocker
+2. Tap "OFF — Tap to enable" under Accessibility Service
+3. Find "AppLocker" in the list and toggle it ON
+4. Confirm the permission dialog
+
+## Development
+
+```bash
+# Start Metro bundler
 npm start
 
-# OR using Yarn
-yarn start
+# Run linting
+npm run lint
+
+# Run tests
+npm test
 ```
 
-## Step 2: Build and run your app
+## Known Limitations
 
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
+- **Android only** — iOS doesn't allow overlaying lock screens on other apps
+- **Accessibility Service required** — User must manually enable it
+- **No cloud sync** — Locked apps stored locally only
 
-### Android
+## License
 
-```sh
-# Using npm
-npm run android
-
-# OR using Yarn
-yarn android
-```
-
-### iOS
-
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
-
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
-
-```sh
-bundle install
-```
-
-Then, and every time you update your native dependencies, run:
-
-```sh
-bundle exec pod install
-```
-
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
-
-```sh
-# Using npm
-npm run ios
-
-# OR using Yarn
-yarn ios
-```
-
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
-
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
-
-## Step 3: Modify your app
-
-Now that you have successfully run the app, let's make changes!
-
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
-
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
-
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
-
-## Congratulations! :tada:
-
-You've successfully run and modified your React Native App. :partying_face:
-
-### Now what?
-
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
-
-# Troubleshooting
-
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
-
-# Learn More
-
-To learn more about React Native, take a look at the following resources:
-
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+MIT
