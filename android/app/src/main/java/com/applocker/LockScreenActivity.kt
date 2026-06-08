@@ -1,22 +1,22 @@
 package com.applocker
 
-import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
-import android.hardware.biometrics.BiometricManager
-import android.hardware.biometrics.BiometricPrompt
 import android.os.Bundle
 import android.util.Base64
 import android.view.WindowManager
 import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
+import androidx.biometric.BiometricManager
+import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
+import androidx.fragment.app.FragmentActivity
 import java.security.MessageDigest
 import java.util.concurrent.Executor
 
-class LockScreenActivity : Activity() {
+class LockScreenActivity : FragmentActivity() {
 
     private var pinBuffer = StringBuilder()
     private var targetPackage: String? = null
