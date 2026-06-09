@@ -3,20 +3,13 @@ package com.applocker
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
+import android.content.pm.PackageManager
 import android.provider.Settings
-import android.util.Base64
 import com.facebook.react.bridge.*
 import java.security.MessageDigest
-import java.security.SecureRandom
 
 class AppLockerModule(reactContext: ReactApplicationContext) :
     ReactContextBaseJavaModule(reactContext) {
-
-    companion object {
-        private const val PREFS_NAME = "applocker"
-        private const val PIN_HASH_KEY = "pin_hash"
-        private const val PIN_SALT_KEY = "pin_salt"
-    }
 
     override fun getName(): String = "AppLockerModule"
 
@@ -95,17 +88,8 @@ class AppLockerModule(reactContext: ReactApplicationContext) :
                 promise.reject("PIN_TOO_SHORT", "PIN must be at least 4 digits")
                 return
             }
-            val salt = generateSalt()
-            val hash = hashPinWithSalt(pin, salt)
-            val prefs = getPrefs()
-            val saved = prefs.edit()
-                .putString(PIN_HASH_KEY, hash)
-                .putString(PIN_SALT_KEY, Base64.encodeToString(salt, Base64.NO_WRAP))
-                .commit()
-            if (!saved) {
-                promise.reject("PIN_SAVE_FAILED", "Failed to persist PIN to disk")
-                return
-            }
+            val hash = hashPin(pin)
+            getPrefs().edit().putString("pin_hash", hash).commit()
             promise.resolve(true)
         } catch (e: Exception) {
             promise.reject("PIN_ERROR", e.message, e)
@@ -115,16 +99,12 @@ class AppLockerModule(reactContext: ReactApplicationContext) :
     @ReactMethod
     fun verifyPin(pin: String, promise: Promise) {
         try {
-            val prefs = getPrefs()
-            val storedHash = prefs.getString(PIN_HASH_KEY, null)
-            val storedSaltB64 = prefs.getString(PIN_SALT_KEY, null)
-            if (storedHash == null || storedSaltB64 == null) {
+            val storedHash = getPrefs().getString("pin_hash", null)
+            if (storedHash == null) {
                 promise.resolve(false)
                 return
             }
-            val salt = Base64.decode(storedSaltB64, Base64.NO_WRAP)
-            val inputHash = hashPinWithSalt(pin, salt)
-            promise.resolve(inputHash == storedHash)
+            promise.resolve(hashPin(pin) == storedHash)
         } catch (e: Exception) {
             promise.reject("PIN_ERROR", e.message, e)
         }
@@ -133,8 +113,7 @@ class AppLockerModule(reactContext: ReactApplicationContext) :
     @ReactMethod
     fun hasPin(promise: Promise) {
         try {
-            val prefs = getPrefs()
-            val hash = prefs.getString(PIN_HASH_KEY, null)
+            val hash = getPrefs().getString("pin_hash", null)
             promise.resolve(hash != null)
         } catch (e: Exception) {
             promise.reject("PIN_ERROR", e.message, e)
@@ -177,19 +156,12 @@ class AppLockerModule(reactContext: ReactApplicationContext) :
     }
 
     private fun getPrefs(): SharedPreferences {
-        return reactApplicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        return reactApplicationContext.getSharedPreferences("applocker", Context.MODE_PRIVATE)
     }
 
-    private fun generateSalt(): ByteArray {
-        val salt = ByteArray(16)
-        SecureRandom().nextBytes(salt)
-        return salt
-    }
-
-    private fun hashPinWithSalt(pin: String, salt: ByteArray): String {
+    private fun hashPin(pin: String): String {
         val digest = MessageDigest.getInstance("SHA-256")
-        digest.update(salt)
-        val bytes = digest.digest(pin.toByteArray(Charsets.UTF_8))
+        val bytes = digest.digest(pin.toByteArray())
         return bytes.joinToString("") { "%02x".format(it) }
     }
 }
