@@ -99,7 +99,8 @@ android {
         }
         release {
             signingConfig signingConfigs.debug
-            minifyEnabled false
+            minifyEnabled enableProguardInReleaseBuilds
+            proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
         }
     }
 
