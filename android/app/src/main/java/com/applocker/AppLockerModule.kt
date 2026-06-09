@@ -3,29 +3,19 @@ package com.applocker
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
-import android.content.pm.PackageManager
 import android.provider.Settings
-import android.security.keystore.KeyGenParameterSpec
-import android.security.keystore.KeyProperties
 import android.util.Base64
 import com.facebook.react.bridge.*
 import java.security.MessageDigest
 import java.security.SecureRandom
-import javax.crypto.Cipher
-import javax.crypto.KeyGenerator
-import javax.crypto.SecretKey
-import javax.crypto.spec.GCMParameterSpec
 
 class AppLockerModule(reactContext: ReactApplicationContext) :
     ReactContextBaseJavaModule(reactContext) {
 
     companion object {
-        private const val KEY_ALIAS = "applocker_pin_key"
         private const val PREFS_NAME = "applocker"
         private const val PIN_HASH_KEY = "pin_hash"
         private const val PIN_SALT_KEY = "pin_salt"
-        private const val GCM_IV_LENGTH = 12
-        private const val GCM_TAG_LENGTH = 16
     }
 
     override fun getName(): String = "AppLockerModule"
@@ -183,20 +173,6 @@ class AppLockerModule(reactContext: ReactApplicationContext) :
             promise.resolve(true)
         } catch (e: Exception) {
             promise.reject("SETTINGS_ERROR", e.message, e)
-        }
-    }
-
-    @ReactMethod
-    fun isBiometricAvailable(promise: Promise) {
-        try {
-            val biometricManager = reactApplicationContext.getSystemService(android.hardware.biometrics.BiometricManager::class.java)
-            val result = when (biometricManager.canAuthenticate()) {
-                android.hardware.biometrics.BiometricManager.BIOMETRIC_SUCCESS -> true
-                else -> false
-            }
-            promise.resolve(result)
-        } catch (e: Exception) {
-            promise.resolve(false)
         }
     }
 
