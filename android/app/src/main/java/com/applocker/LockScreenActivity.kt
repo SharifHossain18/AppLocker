@@ -182,7 +182,7 @@ class LockScreenActivity : FragmentActivity() {
     private fun hashPinWithSalt(pin: String, salt: ByteArray): String {
         val digest = MessageDigest.getInstance("SHA-256")
         digest.update(salt)
-        val bytes = digest.digest(pin.toByteArray())
+        val bytes = digest.digest(pin.toByteArray(Charsets.UTF_8))
         return bytes.joinToString("") { "%02x".format(it) }
     }
 

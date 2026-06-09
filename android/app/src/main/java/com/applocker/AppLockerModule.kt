@@ -67,7 +67,7 @@ class AppLockerModule(reactContext: ReactApplicationContext) :
             val prefs = getPrefs()
             val locked = prefs.getStringSet("locked_apps", mutableSetOf())?.toMutableSet() ?: mutableSetOf()
             locked.add(packageName)
-            prefs.edit().putStringSet("locked_apps", locked).apply()
+            prefs.edit().putStringSet("locked_apps", locked).commit()
             promise.resolve(true)
         } catch (e: Exception) {
             promise.reject("LOCK_ERROR", e.message, e)
@@ -80,7 +80,7 @@ class AppLockerModule(reactContext: ReactApplicationContext) :
             val prefs = getPrefs()
             val locked = prefs.getStringSet("locked_apps", mutableSetOf())?.toMutableSet() ?: mutableSetOf()
             locked.remove(packageName)
-            prefs.edit().putStringSet("locked_apps", locked).apply()
+            prefs.edit().putStringSet("locked_apps", locked).commit()
             promise.resolve(true)
         } catch (e: Exception) {
             promise.reject("UNLOCK_ERROR", e.message, e)
@@ -108,10 +108,14 @@ class AppLockerModule(reactContext: ReactApplicationContext) :
             val salt = generateSalt()
             val hash = hashPinWithSalt(pin, salt)
             val prefs = getPrefs()
-            prefs.edit()
+            val saved = prefs.edit()
                 .putString(PIN_HASH_KEY, hash)
                 .putString(PIN_SALT_KEY, Base64.encodeToString(salt, Base64.NO_WRAP))
-                .apply()
+                .commit()
+            if (!saved) {
+                promise.reject("PIN_SAVE_FAILED", "Failed to persist PIN to disk")
+                return
+            }
             promise.resolve(true)
         } catch (e: Exception) {
             promise.reject("PIN_ERROR", e.message, e)
@@ -209,7 +213,7 @@ class AppLockerModule(reactContext: ReactApplicationContext) :
     private fun hashPinWithSalt(pin: String, salt: ByteArray): String {
         val digest = MessageDigest.getInstance("SHA-256")
         digest.update(salt)
-        val bytes = digest.digest(pin.toByteArray())
+        val bytes = digest.digest(pin.toByteArray(Charsets.UTF_8))
         return bytes.joinToString("") { "%02x".format(it) }
     }
 }

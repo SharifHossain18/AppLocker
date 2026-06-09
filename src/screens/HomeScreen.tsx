@@ -9,6 +9,7 @@ import {
   Alert,
   TouchableOpacity,
   ActivityIndicator,
+  AppState,
 } from 'react-native';
 import { AppLocker, InstalledApp } from '../native/AppLocker';
 
@@ -57,6 +58,15 @@ export default function HomeScreen() {
     loadData();
   }, [loadData]);
 
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', nextState => {
+      if (nextState === 'active') {
+        loadData();
+      }
+    });
+    return () => sub.remove();
+  }, [loadData]);
+
   const toggleLock = async (pkg: string, value: boolean) => {
     try {
       if (value) {
@@ -91,7 +101,7 @@ export default function HomeScreen() {
       setConfirmPin('');
       setScreen(Screen.MAIN);
       Alert.alert('Success', 'PIN set successfully');
-    } catch (e) {
+    } catch {
       Alert.alert('Error', 'Failed to set PIN');
     }
   };
@@ -110,7 +120,7 @@ export default function HomeScreen() {
         Alert.alert('Error', 'Incorrect PIN');
         setEnteredPin('');
       }
-    } catch (e) {
+    } catch {
       Alert.alert('Error', 'Failed to verify PIN');
     }
   };
