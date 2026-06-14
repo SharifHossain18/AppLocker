@@ -9,13 +9,14 @@ import {
   Alert,
   TouchableOpacity,
   ActivityIndicator,
+  AppState,
+  AppStateStatus,
 } from 'react-native';
 import { AppLocker, InstalledApp } from '../native/AppLocker';
 
 enum Screen {
   MAIN,
   SET_PIN,
-  VERIFY_PIN,
 }
 
 export default function HomeScreen() {
@@ -25,7 +26,6 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true);
   const [pin, setPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
-  const [enteredPin, setEnteredPin] = useState('');
   const [hasPin, setHasPin] = useState(false);
   const [serviceEnabled, setServiceEnabled] = useState(false);
 
@@ -41,11 +41,6 @@ export default function HomeScreen() {
       setLockedApps(new Set(locked));
       setServiceEnabled(serviceOn);
       setHasPin(pinExists);
-      if (pinExists) {
-        setScreen(Screen.VERIFY_PIN);
-      } else {
-        setScreen(Screen.MAIN);
-      }
     } catch (e) {
       console.error(e);
     } finally {
@@ -53,9 +48,26 @@ export default function HomeScreen() {
     }
   }, []);
 
+  // Initial load
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Bug 4 Fix: Re-check accessibility status whenever the app comes back to foreground
+  useEffect(() => {
+    const handleAppStateChange = async (nextState: AppStateStatus) => {
+      if (nextState === 'active') {
+        try {
+          const serviceOn = await AppLocker.isAccessibilityServiceEnabled();
+          setServiceEnabled(serviceOn);
+        } catch (e) {
+          // ignore
+        }
+      }
+    };
+    const sub = AppState.addEventListener('change', handleAppStateChange);
+    return () => sub.remove();
+  }, []);
 
   const toggleLock = async (pkg: string, value: boolean) => {
     try {
@@ -96,25 +108,6 @@ export default function HomeScreen() {
     }
   };
 
-  const checkPin = async () => {
-    if (enteredPin.length < 4) {
-      Alert.alert('Error', 'PIN must be at least 4 digits');
-      return;
-    }
-    try {
-      const success = await AppLocker.verifyPin(enteredPin);
-      if (success) {
-        setScreen(Screen.MAIN);
-        setEnteredPin('');
-      } else {
-        Alert.alert('Error', 'Incorrect PIN');
-        setEnteredPin('');
-      }
-    } catch (e) {
-      Alert.alert('Error', 'Failed to verify PIN');
-    }
-  };
-
   const renderAppItem = ({ item }: { item: InstalledApp }) => {
     const isLocked = lockedApps.has(item.packageName);
     return (
@@ -145,34 +138,17 @@ export default function HomeScreen() {
     );
   }
 
-  if (screen === Screen.VERIFY_PIN) {
-    return (
-      <View style={styles.container}>
-        <Text style={styles.title}>Unlock AppLocker</Text>
-        <TextInput
-          style={styles.pinInput}
-          placeholder="Enter PIN"
-          placeholderTextColor="#666"
-          keyboardType="number-pad"
-          secureTextEntry
-          maxLength={6}
-          value={enteredPin}
-          onChangeText={setEnteredPin}
-        />
-        <TouchableOpacity style={styles.saveBtn} onPress={checkPin}>
-          <Text style={styles.saveBtnText}>Verify & Unlock</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
+  // Bug 1 Fix: SET_PIN screen only — VERIFY_PIN is handled by LockScreenActivity (native)
   if (screen === Screen.SET_PIN) {
     return (
       <View style={styles.container}>
         <Text style={styles.title}>Set Lock PIN</Text>
+        <Text style={styles.hint}>
+          This PIN will protect your locked apps. Fingerprint unlock is also supported.
+        </Text>
         <TextInput
           style={styles.pinInput}
-          placeholder="Enter PIN"
+          placeholder="Enter PIN (4-6 digits)"
           placeholderTextColor="#666"
           keyboardType="number-pad"
           secureTextEntry
@@ -220,7 +196,7 @@ export default function HomeScreen() {
               }
             }}>
             <Text style={styles.statusText}>
-              {serviceEnabled ? 'ON' : 'OFF — Tap to enable'}
+              {serviceEnabled ? 'ON ✓' : 'OFF — Tap to enable'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -230,11 +206,27 @@ export default function HomeScreen() {
             style={[styles.statusBadge, hasPin ? styles.statusOn : styles.statusOff]}
             onPress={() => setScreen(Screen.SET_PIN)}>
             <Text style={styles.statusText}>
-              {hasPin ? 'Set' : 'Tap to set PIN'}
+              {hasPin ? 'Set ✓ — Tap to change' : 'Tap to set PIN'}
             </Text>
           </TouchableOpacity>
         </View>
       </View>
+
+      {!serviceEnabled && (
+        <View style={styles.warningCard}>
+          <Text style={styles.warningText}>
+            ⚠️ Accessibility Service is OFF. Locked apps will NOT be protected until you enable it.
+          </Text>
+        </View>
+      )}
+
+      {!hasPin && (
+        <View style={styles.warningCard}>
+          <Text style={styles.warningText}>
+            ⚠️ No PIN set. Set a PIN before locking apps, otherwise users can bypass the lock screen.
+          </Text>
+        </View>
+      )}
 
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>
@@ -273,11 +265,17 @@ const styles = StyleSheet.create({
     color: '#f8fafc',
     marginBottom: 20,
   },
+  hint: {
+    color: '#94a3b8',
+    fontSize: 13,
+    marginBottom: 16,
+    lineHeight: 18,
+  },
   statusCard: {
     backgroundColor: '#1e293b',
     borderRadius: 16,
     padding: 16,
-    marginBottom: 20,
+    marginBottom: 12,
     gap: 12,
   },
   statusRow: {
@@ -288,11 +286,13 @@ const styles = StyleSheet.create({
   statusLabel: {
     color: '#94a3b8',
     fontSize: 14,
+    flex: 1,
   },
   statusBadge: {
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 12,
+    maxWidth: '60%',
   },
   statusOn: {
     backgroundColor: '#10b981',
@@ -302,14 +302,29 @@ const styles = StyleSheet.create({
   },
   statusText: {
     color: '#fff',
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
+    textAlign: 'center',
+  },
+  warningCard: {
+    backgroundColor: '#422006',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 10,
+    borderLeftWidth: 3,
+    borderLeftColor: '#f97316',
+  },
+  warningText: {
+    color: '#fed7aa',
+    fontSize: 13,
+    lineHeight: 18,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 12,
+    marginTop: 8,
   },
   sectionTitle: {
     color: '#f8fafc',

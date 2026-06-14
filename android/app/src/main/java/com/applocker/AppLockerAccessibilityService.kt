@@ -62,10 +62,21 @@ class AppLockerAccessibilityService : AccessibilityService() {
 
         val packageName = event.packageName?.toString() ?: return
 
-        // Ignore lock screen, launcher, and system UI components from changing lock states
-        if (packageName == "com.applocker" || packageName == "com.android.systemui") {
-            return
-        }
+        // Ignore our own app, system UI, and common system launchers
+        val skipPackages = setOf(
+            "com.applocker",
+            "com.android.systemui",
+            "com.android.launcher",
+            "com.android.launcher2",
+            "com.android.launcher3",
+            "com.google.android.apps.nexuslauncher",
+            "com.sec.android.app.launcher",      // Samsung
+            "com.miui.home",                      // Xiaomi
+            "com.oppo.launcher",                  // OPPO
+            "com.realme.launcher",                // Realme
+            "com.vivo.launcher"                   // Vivo
+        )
+        if (skipPackages.contains(packageName)) return
 
         lastPackageName = packageName
 
@@ -74,6 +85,8 @@ class AppLockerAccessibilityService : AccessibilityService() {
 
         if (lockedApps.contains(packageName)) {
             synchronized(unlockedPackages) {
+                // Bug 5 Fix: Check if the package was unlocked and if the unlock is still valid
+                // (within the same session — session is reset on screen-off)
                 if (unlockedPackages.contains(packageName)) {
                     // Already unlocked in this session
                     return

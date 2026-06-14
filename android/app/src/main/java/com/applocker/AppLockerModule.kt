@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
+import android.os.Build
 import android.provider.Settings
 import com.facebook.react.bridge.*
 import java.security.MessageDigest
@@ -21,22 +22,42 @@ class AppLockerModule(reactContext: ReactApplicationContext) :
                 addCategory(Intent.CATEGORY_LAUNCHER)
             }
             val apps = mutableListOf<WritableMap>()
-            val resolved = pm.queryIntentActivities(intent, 0)
+
+            // Bug 6 Fix: Use MATCH_ALL flag on Android 11+ to avoid empty list due to
+            // package visibility restrictions (API 30+)
+            val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                PackageManager.MATCH_ALL
+            } else {
+                0
+            }
+            val resolved = pm.queryIntentActivities(intent, flags)
 
             for (ri in resolved) {
                 val pkg = ri.activityInfo.packageName
                 val label = ri.loadLabel(pm).toString()
                 val iconResId = ri.activityInfo.icon
 
+                // Skip our own app and core system packages
+                if (pkg == "com.applocker" ||
+                    pkg.startsWith("com.android.") ||
+                    pkg.startsWith("android.")) {
+                    continue
+                }
+
                 val app = Arguments.createMap().apply {
                     putString("packageName", pkg)
                     putString("name", label)
                     putInt("iconResId", iconResId)
                 }
-                if (!pkg.startsWith("com.android") && !pkg.startsWith("android")) {
-                    apps.add(app)
-                }
+                apps.add(app)
             }
+
+            // Sort alphabetically by name for easier browsing
+            apps.sortWith(Comparator { a, b ->
+                val nameA = a.getString("name") ?: ""
+                val nameB = b.getString("name") ?: ""
+                nameA.compareTo(nameB, ignoreCase = true)
+            })
 
             promise.resolve(Arguments.fromList(apps))
         } catch (e: Exception) {
@@ -89,7 +110,11 @@ class AppLockerModule(reactContext: ReactApplicationContext) :
                 return
             }
             val hash = hashPin(pin)
-            getPrefs().edit().putString("pin_hash", hash).commit()
+            // Also store pin length so LockScreenActivity knows when to verify
+            getPrefs().edit()
+                .putString("pin_hash", hash)
+                .putInt("pin_length", pin.length)
+                .commit()
             promise.resolve(true)
         } catch (e: Exception) {
             promise.reject("PIN_ERROR", e.message, e)
