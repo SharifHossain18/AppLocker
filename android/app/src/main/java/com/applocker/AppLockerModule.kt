@@ -23,13 +23,7 @@ class AppLockerModule(reactContext: ReactApplicationContext) :
             }
             val apps = mutableListOf<WritableMap>()
 
-            // Bug 6 Fix: Use MATCH_ALL flag on Android 11+ to avoid empty list due to
-            // package visibility restrictions (API 30+)
-            val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                PackageManager.MATCH_ALL
-            } else {
-                0
-            }
+            val flags = 0
             val resolved = pm.queryIntentActivities(intent, flags)
 
             for (ri in resolved) {
