@@ -31,12 +31,34 @@ export default function HomeScreen() {
 
   const loadData = useCallback(async () => {
     try {
-      const [installed, locked, serviceOn, pinExists] = await Promise.all([
-        AppLocker.getInstalledApps(),
-        AppLocker.getLockedApps(),
-        AppLocker.isAccessibilityServiceEnabled(),
-        AppLocker.hasPin(),
-      ]);
+      let installed: InstalledApp[] = [];
+      try {
+        installed = await AppLocker.getInstalledApps();
+      } catch (e) {
+        console.error('Failed to load installed apps', e);
+      }
+
+      let locked: string[] = [];
+      try {
+        locked = await AppLocker.getLockedApps();
+      } catch (e) {
+        console.error('Failed to load locked apps', e);
+      }
+
+      let serviceOn = false;
+      try {
+        serviceOn = await AppLocker.isAccessibilityServiceEnabled();
+      } catch (e) {
+        console.error('Failed to check accessibility service status', e);
+      }
+
+      let pinExists = false;
+      try {
+        pinExists = await AppLocker.hasPin();
+      } catch (e) {
+        console.error('Failed to check PIN status', e);
+      }
+
       setApps(installed);
       setLockedApps(new Set(locked));
       setServiceEnabled(serviceOn);

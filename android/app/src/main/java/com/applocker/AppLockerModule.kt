@@ -27,23 +27,28 @@ class AppLockerModule(reactContext: ReactApplicationContext) :
             val resolved = pm.queryIntentActivities(intent, flags)
 
             for (ri in resolved) {
-                val pkg = ri.activityInfo.packageName
-                val label = ri.loadLabel(pm).toString()
-                val iconResId = ri.activityInfo.icon
+                try {
+                    val activityInfo = ri.activityInfo ?: continue
+                    val pkg = activityInfo.packageName ?: continue
+                    val label = ri.loadLabel(pm)?.toString() ?: pkg
+                    val iconResId = activityInfo.icon
 
-                // Skip our own app and core system packages
-                if (pkg == "com.applocker" ||
-                    pkg.startsWith("com.android.") ||
-                    pkg.startsWith("android.")) {
-                    continue
-                }
+                    // Skip our own app and core system packages
+                    if (pkg == "com.applocker" ||
+                        pkg.startsWith("com.android.") ||
+                        pkg.startsWith("android.")) {
+                        continue
+                    }
 
-                val app = Arguments.createMap().apply {
-                    putString("packageName", pkg)
-                    putString("name", label)
-                    putInt("iconResId", iconResId)
+                    val app = Arguments.createMap().apply {
+                        putString("packageName", pkg)
+                        putString("name", label)
+                        putInt("iconResId", iconResId)
+                    }
+                    apps.add(app)
+                } catch (e: Exception) {
+                    android.util.Log.e("AppLockerModule", "Failed to load info for package: ${e.message}")
                 }
-                apps.add(app)
             }
 
             // Sort alphabetically by name for easier browsing
